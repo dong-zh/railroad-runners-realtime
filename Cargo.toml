@@ -9,3 +9,4 @@ edition = "2021"
 anyhow = "1.0.80"
 clap = { version = "4.5.1", features = ["derive"] }
 console = "0.15.8"
+rand = "0.8.5"

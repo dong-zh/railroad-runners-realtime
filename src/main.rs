@@ -1,6 +1,7 @@
-use anyhow::{anyhow, Error, Result};
+use anyhow::{Context, Error, Result};
 use clap::Parser;
 use console::Term;
+use rand;
 use std::time::SystemTime;
 use std::{
     io::{BufRead, BufReader, Write},
@@ -9,7 +10,7 @@ use std::{
 };
 
 // The higher the number, the slower the game
-const GAME_SPEED_MULTIPLIER: f64 = 1.3;
+const GAME_SPEED_MULTIPLIER: f64 = 1.2;
 const DEFAULT_MIPSY_PATH: &str = "/home/cs1521/bin/mipsy";
 
 #[derive(Parser, Debug)]
@@ -21,35 +22,26 @@ struct Cli {
     /// The path to the mipsy executable.
     #[arg(long, value_name = "mipsy_path")]
     mipsy_path: Option<String>,
+
+    /// Optional seed for the game. If omitted, a random seed will be used.
+    #[arg(long, value_name = "seed")]
+    seed: Option<i32>,
 }
 
 #[derive(Clone, Debug)]
 struct Args {
     file_name: String,
     mipsy_path: String,
+    seed: i32,
 }
 
 fn main() -> Result<()> {
-    run_game(&parse_args(), get_seed()?)?;
+    let args = parse_args();
+    println!("Using seed {}", args.seed);
+    run_game(&args)?;
+
+    println!("Game finished! Seed was {}", args.seed);
     Ok(())
-}
-
-fn get_seed() -> Result<u32> {
-    print!("Enter a non-zero seed: ");
-    std::io::stdout().flush()?;
-
-    let mut seed = String::new();
-    std::io::stdin().read_line(&mut seed)?;
-    let seed = seed
-        .trim()
-        .parse()
-        .map_err(|_| anyhow!("Failed to parse seed"))?;
-
-    if seed == 0 {
-        Err(anyhow!("Seed can't be zero"))
-    } else {
-        Ok(seed)
-    }
 }
 
 fn print_thread(stdout: BufReader<&mut std::process::ChildStdout>) {
@@ -109,19 +101,19 @@ fn input_thread(
     }
 }
 
-fn run_game(args: &Args, seed: u32) -> Result<()> {
+fn run_game(args: &Args) -> Result<()> {
     println!("Starting Railroad Runners...");
 
     let mut child = std::process::Command::new(&args.mipsy_path)
         .arg(&args.file_name)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
-        .spawn()?;
+        .spawn().context("Failed to spawn mipsy. Try providing the path to mipsy via --mipsy-path /path/to/mipsy.")?;
 
     let stdin = child.stdin.as_mut().ok_or(Error::msg("No stdin"))?;
     let stdout = BufReader::new(child.stdout.as_mut().ok_or(Error::msg("No stdout"))?);
 
-    stdin.write_all(format!("{}\n", seed).as_bytes())?;
+    stdin.write_all(format!("{}\n", args.seed).as_bytes())?;
 
     let start_time = SystemTime::now();
 
@@ -150,5 +142,6 @@ fn parse_args() -> Args {
     Args {
         file_name: args.file_name,
         mipsy_path: args.mipsy_path.unwrap_or(DEFAULT_MIPSY_PATH.to_string()),
+        seed: args.seed.unwrap_or_else(|| rand::random()),
     }
 }
