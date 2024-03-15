@@ -69,6 +69,7 @@ fn tick_thread(
         let num = f64::log(if elapsed < BASE { BASE } else { elapsed }, BASE);
         let time_to_sleep = f64::min(1.0, GAME_SPEED_MULTIPLIER / num);
 
+        print!("{}[2J", 27 as char);    // clear the terminal
         println!("num: {}", num);
         println!("tts: {}", time_to_sleep);
         std::thread::sleep(std::time::Duration::from_secs_f64(time_to_sleep));
@@ -90,6 +91,7 @@ fn input_thread(
 
         let input = term.read_char().unwrap();
         if VALID_CHARS.contains(&input) {
+            print!("{}[2J", 27 as char);    // clear the terminal
             if let Err(_) = stdin
                 .lock()
                 .unwrap()
